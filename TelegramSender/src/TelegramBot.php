@@ -2,7 +2,6 @@
 
 namespace TeleHelper\TelegramSender;
 
-use TeleHelper\TelegramSender\Jobs\SendTelegramMessageJob;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -343,14 +342,6 @@ public function sendMediaGroup(string $chatId, array $mediaList): array
     ];
 
     return $this->send('sendMediaGroup', $payload);
-}
-
-public function sendBulkMessage(array $chatIds, string $text, array $options = [], ?string $queue = null): void
-{
-    foreach ($chatIds as $chatId) {
-        SendTelegramMessageJob::dispatch($this->botName, $chatId, $text, $options)
-            ->onQueue($queue ?? config('telegram-sender.default_queue', 'default'));
-    }
 }
 
 public function sendPhotoFromContent(string $chatId, string $fileContent, string $filename = 'image.jpg', ?string $caption = null): array
