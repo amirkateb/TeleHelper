@@ -3,72 +3,116 @@
 namespace TeleHelper\TelegramSender;
 
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class TelegramBot
 {
     protected string $token;
+    protected ?string $botName;
 
-    public function __construct(string $token)
+    public function __construct(string $token, ?string $botName = null)
     {
         $this->token = $token;
+        $this->botName = $botName;
     }
 
-    protected function send(string $method, array $params): array
-{
-    $url = "https://api.telegram.org/bot{$this->token}/{$method}";
+    protected function getBaseUrl(string $method): string
+    {
+        return "https://api.telegram.org/bot{$this->token}/{$method}";
+    }
 
-    try {
+    protected function buildHttpClient()
+    {
         $http = Http::timeout(10);
+
         if (config('telegram-sender.proxy.enabled')) {
-            $proxyUrl = config('telegram-sender.proxy.type') . '://' .
-                        config('telegram-sender.proxy.host') . ':' .
-                        config('telegram-sender.proxy.port');
+            $proxy = config('telegram-sender.proxy');
+            $proxyUrl = "{$proxy['type']}://";
 
-            $http = $http->withOptions([
-                'proxy' => $proxyUrl,
-                'auth' => config('telegram-sender.proxy.username')
-                    ? [config('telegram-sender.proxy.username'), config('telegram-sender.proxy.password')]
-                    : null
-            ]);
+            if ($proxy['username']) {
+                $proxyUrl .= "{$proxy['username']}:{$proxy['password']}@";
+            }
+
+            $proxyUrl .= "{$proxy['host']}:{$proxy['port']}";
+
+            $http = $http->withOptions(['proxy' => $proxyUrl]);
         }
 
-        $response = $http->post($url, $params);
-
-        if (!$response->successful()) {
-            throw new TelegramException("Telegram API error ({$method}): " . $response->body());
-        }
-
-        return $response->json();
-    } catch (\Throwable $e) {
-        throw new TelegramException("Send failed ({$method}): " . $e->getMessage(), $e->getCode(), $e);
+        return $http;
     }
-}
 
-    public function sendMessage(string $chatId, string $text, array $options = []): array
+    protected function logMessage(string $method, array $payload): void
+    {
+        if (config('telegram-sender.log_enabled', false)) {
+            Log::channel(config('telegram-sender.log_channel', 'stack'))
+                ->info("Telegram ({$method})", [
+                    'bot' => $this->botName,
+                    'payload' => $payload,
+                ]);
+        }
+    }
+
+    protected function send(string $method, array $payload): array
+    {
+        $this->logMessage($method, $payload);
+
+        try {
+            $response = $this->buildHttpClient()->post($this->getBaseUrl($method), $payload);
+
+            if (!$response->successful()) {
+                throw new TelegramException("Telegram API error ({$method}): " . $response->body());
+            }
+
+            return $response->json();
+        } catch (\Throwable $e) {
+            throw new TelegramException("Send failed ({$method}): " . $e->getMessage(), $e->getCode(), $e);
+        }
+    }
+
+    public function sendMessage(array|string $chatIds, string $text, array $options = []): array
+    {
+        $results = [];
+        foreach ((array)$chatIds as $chatId) {
+            $payload = [
+                'chat_id' => $chatId,
+                'text' => $text,
+                'parse_mode' => $options['parse_mode'] ?? 'HTML',
+                'disable_web_page_preview' => $options['disable_web_page_preview'] ?? false,
+                'disable_notification' => $options['disable_notification'] ?? false,
+                'reply_to_message_id' => $options['reply_to_message_id'] ?? null,
+            ];
+
+            if (!empty($options['buttons'])) {
+                $payload['reply_markup'] = json_encode([
+                    'inline_keyboard' => $options['buttons'],
+                ]);
+            }
+
+            $results[] = $this->send('sendMessage', $payload);
+        }
+
+        return count($results) === 1 ? $results[0] : $results;
+    }
+
+    public function sendPoll(string $chatId, string $question, array $optionsList, array $options = []): array
     {
         $payload = [
             'chat_id' => $chatId,
-            'text' => $text,
-            'parse_mode' => $options['parse_mode'] ?? 'HTML',
-            'disable_web_page_preview' => $options['disable_web_page_preview'] ?? false,
-            'disable_notification' => $options['disable_notification'] ?? false,
-            'reply_to_message_id' => $options['reply_to_message_id'] ?? null,
+            'question' => $question,
+            'options' => json_encode($optionsList),
+            'is_anonymous' => $options['is_anonymous'] ?? true,
+            'type' => $options['type'] ?? 'regular',
+            'allows_multiple_answers' => $options['multiple'] ?? false,
         ];
 
-        if (!empty($options['buttons'])) {
-            $payload['reply_markup'] = json_encode([
-                'inline_keyboard' => $options['buttons'],
-            ]);
-        }
-
-        return $this->send('sendMessage', $payload);
+        return $this->send('sendPoll', $payload);
     }
 
-    public function sendPhoto(string $chatId, string $photo, ?string $caption = null, array $options = []): array
+    public function sendPhoto(string $chatId, string $urlOrFileId, ?string $caption = null, array $options = []): array
     {
         $payload = [
             'chat_id' => $chatId,
-            'photo' => $photo,
+            'photo' => $urlOrFileId,
             'caption' => $caption,
             'parse_mode' => $options['parse_mode'] ?? 'HTML',
             'disable_notification' => $options['disable_notification'] ?? false,
@@ -84,69 +128,48 @@ class TelegramBot
         return $this->send('sendPhoto', $payload);
     }
 
-    public function sendDocument(string $chatId, string $fileUrl, ?string $caption = null, array $options = []): array
+    public function sendPhotoFile(string $chatId, string $filePath, ?string $caption = null, array $options = []): array
     {
-        $payload = [
-            'chat_id' => $chatId,
-            'document' => $fileUrl,
-            'caption' => $caption,
-            'parse_mode' => $options['parse_mode'] ?? 'HTML',
-            'disable_notification' => $options['disable_notification'] ?? false,
-            'reply_to_message_id' => $options['reply_to_message_id'] ?? null,
-        ];
+        $url = $this->getBaseUrl('sendPhoto');
 
-        if (!empty($options['buttons'])) {
-            $payload['reply_markup'] = json_encode([
-                'inline_keyboard' => $options['buttons'],
+        $response = $this->buildHttpClient()
+            ->attach('photo', fopen($filePath, 'r'), basename($filePath))
+            ->post($url, [
+                'chat_id' => $chatId,
+                'caption' => $caption,
+                'parse_mode' => $options['parse_mode'] ?? 'HTML',
+                'reply_markup' => !empty($options['buttons']) ? json_encode([
+                    'inline_keyboard' => $options['buttons'],
+                ]) : null,
             ]);
+
+        if (!$response->successful()) {
+            throw new TelegramException("Telegram API error (sendPhotoFile): " . $response->body());
         }
 
-        return $this->send('sendDocument', $payload);
+        return $response->json();
     }
 
-    public function sendMediaGroup(string $chatId, array $media): array
+    public function sendDocumentFile(string $chatId, string $filePath, ?string $caption = null, array $options = []): array
     {
-        $payload = [
-            'chat_id' => $chatId,
-            'media' => json_encode($media),
-        ];
+        $url = $this->getBaseUrl('sendDocument');
 
-        return $this->send('sendMediaGroup', $payload);
-    }
-
-    public function editMessageText(string $chatId, int $messageId, string $newText, array $options = []): array
-    {
-        $payload = [
-            'chat_id' => $chatId,
-            'message_id' => $messageId,
-            'text' => $newText,
-            'parse_mode' => $options['parse_mode'] ?? 'HTML',
-        ];
-
-        if (!empty($options['buttons'])) {
-            $payload['reply_markup'] = json_encode([
-                'inline_keyboard' => $options['buttons'],
+        $response = $this->buildHttpClient()
+            ->attach('document', fopen($filePath, 'r'), basename($filePath))
+            ->post($url, [
+                'chat_id' => $chatId,
+                'caption' => $caption,
+                'parse_mode' => $options['parse_mode'] ?? 'HTML',
+                'reply_markup' => !empty($options['buttons']) ? json_encode([
+                    'inline_keyboard' => $options['buttons'],
+                ]) : null,
             ]);
+
+        if (!$response->successful()) {
+            throw new TelegramException("Telegram API error (sendDocumentFile): " . $response->body());
         }
 
-        return $this->send('editMessageText', $payload);
-    }
-
-    public function deleteMessage(string $chatId, int $messageId): array
-    {
-        return $this->send('deleteMessage', [
-            'chat_id' => $chatId,
-            'message_id' => $messageId,
-        ]);
-    }
-
-    public function answerCallbackQuery(string $callbackQueryId, string $text = '', bool $showAlert = false): array
-    {
-        return $this->send('answerCallbackQuery', [
-            'callback_query_id' => $callbackQueryId,
-            'text' => $text,
-            'show_alert' => $showAlert,
-        ]);
+        return $response->json();
     }
 
     public function sendReplyKeyboard(string $chatId, string $text, array $keyboard, array $options = []): array
@@ -186,25 +209,10 @@ class TelegramBot
             'chat_id' => $chatId,
             'text' => $text,
             'parse_mode' => $options['parse_mode'] ?? 'HTML',
-            'reply_markup' => json_encode([
-                'remove_keyboard' => true,
-            ]),
+            'reply_markup' => json_encode(['remove_keyboard' => true]),
         ];
 
         return $this->send('sendMessage', $payload);
-    }
-
-    public function sendLocation(string $chatId, float $latitude, float $longitude, array $options = []): array
-    {
-        $payload = [
-            'chat_id' => $chatId,
-            'latitude' => $latitude,
-            'longitude' => $longitude,
-            'disable_notification' => $options['disable_notification'] ?? false,
-            'horizontal_accuracy' => $options['accuracy'] ?? null,
-        ];
-
-        return $this->send('sendLocation', $payload);
     }
 
     public function sendChatAction(string $chatId, string $action): array
@@ -214,86 +222,95 @@ class TelegramBot
             'action' => $action,
         ]);
     }
-    
-    public function sendPhotoFile(
-    string $filePath,
-    ?string $caption = null,
-    array $options = []
-): array {
-    $url = "https://api.telegram.org/bot{$this->token}/sendPhoto";
 
-    try {
-        $response = Http::timeout(15)
-            ->withOptions([
-                'proxy' => config('telegram-sender.proxy.enabled') ? sprintf(
-                    '%s://%s%s',
-                    config('telegram-sender.proxy.type'),
-                    config('telegram-sender.proxy.username')
-                        ? config('telegram-sender.proxy.username') . ':' . config('telegram-sender.proxy.password') . '@'
-                        : '',
-                    config('telegram-sender.proxy.host') . ':' . config('telegram-sender.proxy.port')
-                ) : null,
-            ])
-            ->attach('photo', fopen($filePath, 'r'), basename($filePath))
-            ->post($url, [
-                'chat_id' => $this->chatId,
-                'caption' => $caption,
-                'parse_mode' => $options['parse_mode'] ?? 'HTML',
-                'disable_notification' => $options['disable_notification'] ?? false,
-                'reply_to_message_id' => $options['reply_to_message_id'] ?? null,
-                'reply_markup' => !empty($options['buttons']) ? json_encode([
-                    'inline_keyboard' => $options['buttons'],
-                ]) : null,
+    public function editMessageText(string $chatId, int $messageId, string $newText, array $options = []): array
+    {
+        $payload = [
+            'chat_id' => $chatId,
+            'message_id' => $messageId,
+            'text' => $newText,
+            'parse_mode' => $options['parse_mode'] ?? 'HTML',
+        ];
+
+        if (!empty($options['buttons'])) {
+            $payload['reply_markup'] = json_encode([
+                'inline_keyboard' => $options['buttons'],
             ]);
-
-        if (!$response->successful()) {
-            throw new TelegramException("Telegram API error (sendPhotoFile): " . $response->body());
         }
 
-        return $response->json();
-    } catch (\Throwable $e) {
-        throw new TelegramException("sendPhotoFile failed: " . $e->getMessage(), $e->getCode(), $e);
+        return $this->send('editMessageText', $payload);
     }
+
+    public function answerCallbackQuery(string $callbackQueryId, string $text = '', bool $showAlert = false): array
+    {
+        return $this->send('answerCallbackQuery', [
+            'callback_query_id' => $callbackQueryId,
+            'text' => $text,
+            'show_alert' => $showAlert,
+        ]);
+    }
+    
+    public function deleteMessage(string $chatId, int $messageId): array
+{
+    return $this->send('deleteMessage', [
+        'chat_id' => $chatId,
+        'message_id' => $messageId,
+    ]);
 }
 
-public function sendDocumentFile(
-    string $filePath,
-    ?string $caption = null,
-    array $options = []
-): array {
-    $url = "https://api.telegram.org/bot{$this->token}/sendDocument";
+public function sendLocation(string $chatId, float $latitude, float $longitude, array $options = []): array
+{
+    $payload = [
+        'chat_id' => $chatId,
+        'latitude' => $latitude,
+        'longitude' => $longitude,
+        'disable_notification' => $options['disable_notification'] ?? false,
+        'horizontal_accuracy' => $options['accuracy'] ?? null,
+        'live_period' => $options['live_period'] ?? null,
+    ];
 
-    try {
-        $response = Http::timeout(15)
-            ->withOptions([
-                'proxy' => config('telegram-sender.proxy.enabled') ? sprintf(
-                    '%s://%s%s',
-                    config('telegram-sender.proxy.type'),
-                    config('telegram-sender.proxy.username')
-                        ? config('telegram-sender.proxy.username') . ':' . config('telegram-sender.proxy.password') . '@'
-                        : '',
-                    config('telegram-sender.proxy.host') . ':' . config('telegram-sender.proxy.port')
-                ) : null,
-            ])
-            ->attach('document', fopen($filePath, 'r'), basename($filePath))
-            ->post($url, [
-                'chat_id' => $this->chatId,
-                'caption' => $caption,
-                'parse_mode' => $options['parse_mode'] ?? 'HTML',
-                'disable_notification' => $options['disable_notification'] ?? false,
-                'reply_to_message_id' => $options['reply_to_message_id'] ?? null,
-                'reply_markup' => !empty($options['buttons']) ? json_encode([
-                    'inline_keyboard' => $options['buttons'],
-                ]) : null,
-            ]);
+    return $this->send('sendLocation', $payload);
+}
 
-        if (!$response->successful()) {
-            throw new TelegramException("Telegram API error (sendDocumentFile): " . $response->body());
-        }
+public function sendVenue(string $chatId, float $latitude, float $longitude, string $title, string $address, array $options = []): array
+{
+    $payload = [
+        'chat_id' => $chatId,
+        'latitude' => $latitude,
+        'longitude' => $longitude,
+        'title' => $title,
+        'address' => $address,
+    ];
 
-        return $response->json();
-    } catch (\Throwable $e) {
-        throw new TelegramException("sendDocumentFile failed: " . $e->getMessage(), $e->getCode(), $e);
+    return $this->send('sendVenue', $payload);
+}
+
+public function pinMessage(string $chatId, int $messageId, bool $disableNotification = false): array
+{
+    return $this->send('pinChatMessage', [
+        'chat_id' => $chatId,
+        'message_id' => $messageId,
+        'disable_notification' => $disableNotification,
+    ]);
+}
+
+public function unpinMessage(string $chatId, ?int $messageId = null): array
+{
+    $payload = [
+        'chat_id' => $chatId,
+    ];
+
+    if ($messageId) {
+        $payload['message_id'] = $messageId;
     }
+
+    return $this->send('unpinChatMessage', $payload);
+}
+
+public function getFile(string $fileId): array
+{
+    return $this->send('getFile', [
+        'file_id' => $fileId,
+    ]);
 }
 }
