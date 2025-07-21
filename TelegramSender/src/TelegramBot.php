@@ -214,4 +214,86 @@ class TelegramBot
             'action' => $action,
         ]);
     }
+    
+    public function sendPhotoFile(
+    string $filePath,
+    ?string $caption = null,
+    array $options = []
+): array {
+    $url = "https://api.telegram.org/bot{$this->token}/sendPhoto";
+
+    try {
+        $response = Http::timeout(15)
+            ->withOptions([
+                'proxy' => config('telegram-sender.proxy.enabled') ? sprintf(
+                    '%s://%s%s',
+                    config('telegram-sender.proxy.type'),
+                    config('telegram-sender.proxy.username')
+                        ? config('telegram-sender.proxy.username') . ':' . config('telegram-sender.proxy.password') . '@'
+                        : '',
+                    config('telegram-sender.proxy.host') . ':' . config('telegram-sender.proxy.port')
+                ) : null,
+            ])
+            ->attach('photo', fopen($filePath, 'r'), basename($filePath))
+            ->post($url, [
+                'chat_id' => $this->chatId,
+                'caption' => $caption,
+                'parse_mode' => $options['parse_mode'] ?? 'HTML',
+                'disable_notification' => $options['disable_notification'] ?? false,
+                'reply_to_message_id' => $options['reply_to_message_id'] ?? null,
+                'reply_markup' => !empty($options['buttons']) ? json_encode([
+                    'inline_keyboard' => $options['buttons'],
+                ]) : null,
+            ]);
+
+        if (!$response->successful()) {
+            throw new TelegramException("Telegram API error (sendPhotoFile): " . $response->body());
+        }
+
+        return $response->json();
+    } catch (\Throwable $e) {
+        throw new TelegramException("sendPhotoFile failed: " . $e->getMessage(), $e->getCode(), $e);
+    }
+}
+
+public function sendDocumentFile(
+    string $filePath,
+    ?string $caption = null,
+    array $options = []
+): array {
+    $url = "https://api.telegram.org/bot{$this->token}/sendDocument";
+
+    try {
+        $response = Http::timeout(15)
+            ->withOptions([
+                'proxy' => config('telegram-sender.proxy.enabled') ? sprintf(
+                    '%s://%s%s',
+                    config('telegram-sender.proxy.type'),
+                    config('telegram-sender.proxy.username')
+                        ? config('telegram-sender.proxy.username') . ':' . config('telegram-sender.proxy.password') . '@'
+                        : '',
+                    config('telegram-sender.proxy.host') . ':' . config('telegram-sender.proxy.port')
+                ) : null,
+            ])
+            ->attach('document', fopen($filePath, 'r'), basename($filePath))
+            ->post($url, [
+                'chat_id' => $this->chatId,
+                'caption' => $caption,
+                'parse_mode' => $options['parse_mode'] ?? 'HTML',
+                'disable_notification' => $options['disable_notification'] ?? false,
+                'reply_to_message_id' => $options['reply_to_message_id'] ?? null,
+                'reply_markup' => !empty($options['buttons']) ? json_encode([
+                    'inline_keyboard' => $options['buttons'],
+                ]) : null,
+            ]);
+
+        if (!$response->successful()) {
+            throw new TelegramException("Telegram API error (sendDocumentFile): " . $response->body());
+        }
+
+        return $response->json();
+    } catch (\Throwable $e) {
+        throw new TelegramException("sendDocumentFile failed: " . $e->getMessage(), $e->getCode(), $e);
+    }
+}
 }
