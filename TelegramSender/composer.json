@@ -1,0 +1,23 @@
+{
+  "name": "telehelper/telegram-sender",
+  "description": "Advanced Laravel package to send Telegram messages using multiple bots with buttons, files, and error handling.",
+  "type": "library",
+  "license": "MIT",
+  "autoload": {
+    "psr-4": {
+      "TeleHelper\\TelegramSender\\": "src/"
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "TeleHelper\\TelegramSender\\TelegramSenderServiceProvider"
+      ]
+    }
+  },
+  "require": {
+    "php": ">=8.0",
+    "illuminate/support": "^10.0",
+    "guzzlehttp/guzzle": "^7.0"
+  }
+}
