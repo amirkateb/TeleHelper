@@ -1,14 +1,22 @@
 <?php
+
 return [
+
+    'default_bot' => 'default',
+
     'bots' => [
-        'default' => [
+        [
+            'name' => 'default',
             'token' => env('TELEGRAM_BOT_TOKEN'),
-            'chat_id' => env('TELEGRAM_CHAT_ID'),
         ],
-        'admin' => [
-            'token' => env('TELEGRAM_ADMIN_BOT_TOKEN'),
-            'chat_id' => env('TELEGRAM_ADMIN_CHAT_ID'),
+        [
+            'name' => 'marketing',
+            'token' => env('TELEGRAM_MARKETING_TOKEN'),
+        ],
+        [
+            'name' => 'support',
+            'token' => env('TELEGRAM_SUPPORT_TOKEN'),
         ],
     ],
-    'default_bot' => 'default',
+
 ];
