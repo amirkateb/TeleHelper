@@ -1,6 +1,7 @@
 <?php
 
 namespace TeleHelper\TelegramSender;
+use TeleHelper\TelegramSender\Jobs\SendTelegramJob;
 
 class TelegramSender
 {
@@ -52,4 +53,9 @@ class TelegramSender
     {
         return array_keys($this->bots);
     }
+    
+    public function sendQueued(string $botName, string $method, array $arguments): void
+{
+    SendTelegramJob::dispatch($botName, $method, $arguments);
+}
 }
