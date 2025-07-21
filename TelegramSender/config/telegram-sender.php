@@ -42,6 +42,38 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Default Parse Mode
+    |--------------------------------------------------------------------------
+    |
+    | Set the default parse mode for your messages: 'HTML', 'MarkdownV2', etc.
+    |
+    */
+    'parse_mode' => env('TELEGRAM_PARSE_MODE', 'HTML'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Enable Logging
+    |--------------------------------------------------------------------------
+    |
+    | If enabled, all Telegram messages and API requests will be logged
+    | using the specified logging channel.
+    |
+    */
+    'log_enabled' => env('TELEGRAM_SENDER_LOG_ENABLED', true),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Log Channel
+    |--------------------------------------------------------------------------
+    |
+    | Set the log channel used for Telegram message logs. You can define a
+    | custom channel in config/logging.php (e.g., 'telegram').
+    |
+    */
+    'log_channel' => env('TELEGRAM_SENDER_LOG_CHANNEL', 'telegram'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Proxy Settings (Optional)
     |--------------------------------------------------------------------------
     |
