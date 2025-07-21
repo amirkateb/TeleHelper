@@ -3,17 +3,14 @@
 namespace TeleHelper\TelegramSender;
 
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Arr;
 
 class TelegramBot
 {
     protected string $token;
-    protected string $chatId;
 
-    public function __construct(string $token, string $chatId)
+    public function __construct(string $token)
     {
         $this->token = $token;
-        $this->chatId = $chatId;
     }
 
     protected function send(string $method, array $params): array
@@ -32,12 +29,10 @@ class TelegramBot
         }
     }
 
-    public function sendMessage(
-        string $text,
-        array $options = []
-    ): array {
+    public function sendMessage(string $chatId, string $text, array $options = []): array
+    {
         $payload = [
-            'chat_id' => $this->chatId,
+            'chat_id' => $chatId,
             'text' => $text,
             'parse_mode' => $options['parse_mode'] ?? 'HTML',
             'disable_web_page_preview' => $options['disable_web_page_preview'] ?? false,
@@ -54,13 +49,10 @@ class TelegramBot
         return $this->send('sendMessage', $payload);
     }
 
-    public function sendPhoto(
-        string $photo,
-        ?string $caption = null,
-        array $options = []
-    ): array {
+    public function sendPhoto(string $chatId, string $photo, ?string $caption = null, array $options = []): array
+    {
         $payload = [
-            'chat_id' => $this->chatId,
+            'chat_id' => $chatId,
             'photo' => $photo,
             'caption' => $caption,
             'parse_mode' => $options['parse_mode'] ?? 'HTML',
@@ -77,13 +69,10 @@ class TelegramBot
         return $this->send('sendPhoto', $payload);
     }
 
-    public function sendDocument(
-        string $fileUrl,
-        ?string $caption = null,
-        array $options = []
-    ): array {
+    public function sendDocument(string $chatId, string $fileUrl, ?string $caption = null, array $options = []): array
+    {
         $payload = [
-            'chat_id' => $this->chatId,
+            'chat_id' => $chatId,
             'document' => $fileUrl,
             'caption' => $caption,
             'parse_mode' => $options['parse_mode'] ?? 'HTML',
@@ -100,28 +89,20 @@ class TelegramBot
         return $this->send('sendDocument', $payload);
     }
 
-    public function sendMediaGroup(array $media): array
+    public function sendMediaGroup(string $chatId, array $media): array
     {
-        // ساختار:
-        // [
-        //   ['type' => 'photo', 'media' => 'url', 'caption' => '...', 'parse_mode' => 'HTML'],
-        //   ['type' => 'document', 'media' => 'url']
-        // ]
         $payload = [
-            'chat_id' => $this->chatId,
+            'chat_id' => $chatId,
             'media' => json_encode($media),
         ];
 
         return $this->send('sendMediaGroup', $payload);
     }
 
-    public function editMessageText(
-        int $messageId,
-        string $newText,
-        array $options = []
-    ): array {
+    public function editMessageText(string $chatId, int $messageId, string $newText, array $options = []): array
+    {
         $payload = [
-            'chat_id' => $this->chatId,
+            'chat_id' => $chatId,
             'message_id' => $messageId,
             'text' => $newText,
             'parse_mode' => $options['parse_mode'] ?? 'HTML',
@@ -136,10 +117,10 @@ class TelegramBot
         return $this->send('editMessageText', $payload);
     }
 
-    public function deleteMessage(int $messageId): array
+    public function deleteMessage(string $chatId, int $messageId): array
     {
         return $this->send('deleteMessage', [
-            'chat_id' => $this->chatId,
+            'chat_id' => $chatId,
             'message_id' => $messageId,
         ]);
     }
@@ -152,13 +133,11 @@ class TelegramBot
             'show_alert' => $showAlert,
         ]);
     }
-        public function sendReplyKeyboard(
-        string $text,
-        array $keyboard,
-        array $options = []
-    ): array {
+
+    public function sendReplyKeyboard(string $chatId, string $text, array $keyboard, array $options = []): array
+    {
         $payload = [
-            'chat_id' => $this->chatId,
+            'chat_id' => $chatId,
             'text' => $text,
             'parse_mode' => $options['parse_mode'] ?? 'HTML',
             'reply_markup' => json_encode([
@@ -171,12 +150,10 @@ class TelegramBot
         return $this->send('sendMessage', $payload);
     }
 
-    public function sendForceReply(
-        string $text,
-        array $options = []
-    ): array {
+    public function sendForceReply(string $chatId, string $text, array $options = []): array
+    {
         $payload = [
-            'chat_id' => $this->chatId,
+            'chat_id' => $chatId,
             'text' => $text,
             'parse_mode' => $options['parse_mode'] ?? 'HTML',
             'reply_markup' => json_encode([
@@ -188,12 +165,10 @@ class TelegramBot
         return $this->send('sendMessage', $payload);
     }
 
-    public function removeKeyboard(
-        string $text,
-        array $options = []
-    ): array {
+    public function removeKeyboard(string $chatId, string $text, array $options = []): array
+    {
         $payload = [
-            'chat_id' => $this->chatId,
+            'chat_id' => $chatId,
             'text' => $text,
             'parse_mode' => $options['parse_mode'] ?? 'HTML',
             'reply_markup' => json_encode([
@@ -204,13 +179,10 @@ class TelegramBot
         return $this->send('sendMessage', $payload);
     }
 
-    public function sendLocation(
-        float $latitude,
-        float $longitude,
-        array $options = []
-    ): array {
+    public function sendLocation(string $chatId, float $latitude, float $longitude, array $options = []): array
+    {
         $payload = [
-            'chat_id' => $this->chatId,
+            'chat_id' => $chatId,
             'latitude' => $latitude,
             'longitude' => $longitude,
             'disable_notification' => $options['disable_notification'] ?? false,
@@ -220,11 +192,10 @@ class TelegramBot
         return $this->send('sendLocation', $payload);
     }
 
-    public function sendChatAction(string $action): array
+    public function sendChatAction(string $chatId, string $action): array
     {
-        // action must be one of: typing, upload_photo, record_video, upload_video, record_voice, upload_voice, upload_document, find_location, etc.
         return $this->send('sendChatAction', [
-            'chat_id' => $this->chatId,
+            'chat_id' => $chatId,
             'action' => $action,
         ]);
     }
