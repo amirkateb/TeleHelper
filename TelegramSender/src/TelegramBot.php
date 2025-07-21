@@ -152,4 +152,80 @@ class TelegramBot
             'show_alert' => $showAlert,
         ]);
     }
+        public function sendReplyKeyboard(
+        string $text,
+        array $keyboard,
+        array $options = []
+    ): array {
+        $payload = [
+            'chat_id' => $this->chatId,
+            'text' => $text,
+            'parse_mode' => $options['parse_mode'] ?? 'HTML',
+            'reply_markup' => json_encode([
+                'keyboard' => $keyboard,
+                'resize_keyboard' => true,
+                'one_time_keyboard' => $options['one_time_keyboard'] ?? false,
+            ]),
+        ];
+
+        return $this->send('sendMessage', $payload);
+    }
+
+    public function sendForceReply(
+        string $text,
+        array $options = []
+    ): array {
+        $payload = [
+            'chat_id' => $this->chatId,
+            'text' => $text,
+            'parse_mode' => $options['parse_mode'] ?? 'HTML',
+            'reply_markup' => json_encode([
+                'force_reply' => true,
+                'selective' => $options['selective'] ?? false,
+            ]),
+        ];
+
+        return $this->send('sendMessage', $payload);
+    }
+
+    public function removeKeyboard(
+        string $text,
+        array $options = []
+    ): array {
+        $payload = [
+            'chat_id' => $this->chatId,
+            'text' => $text,
+            'parse_mode' => $options['parse_mode'] ?? 'HTML',
+            'reply_markup' => json_encode([
+                'remove_keyboard' => true,
+            ]),
+        ];
+
+        return $this->send('sendMessage', $payload);
+    }
+
+    public function sendLocation(
+        float $latitude,
+        float $longitude,
+        array $options = []
+    ): array {
+        $payload = [
+            'chat_id' => $this->chatId,
+            'latitude' => $latitude,
+            'longitude' => $longitude,
+            'disable_notification' => $options['disable_notification'] ?? false,
+            'horizontal_accuracy' => $options['accuracy'] ?? null,
+        ];
+
+        return $this->send('sendLocation', $payload);
+    }
+
+    public function sendChatAction(string $action): array
+    {
+        // action must be one of: typing, upload_photo, record_video, upload_video, record_voice, upload_voice, upload_document, find_location, etc.
+        return $this->send('sendChatAction', [
+            'chat_id' => $this->chatId,
+            'action' => $action,
+        ]);
+    }
 }
