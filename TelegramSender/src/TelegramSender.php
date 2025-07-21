@@ -54,8 +54,8 @@ class TelegramSender
         return array_keys($this->bots);
     }
     
-    public function sendQueued(string $botName, string $method, array $arguments): void
+    public function sendQueuedOn(string $queue, string $botName, string $method, array $arguments): void
 {
-    SendTelegramJob::dispatch($botName, $method, $arguments);
+    SendTelegramJob::dispatch($botName, $method, $arguments)->onQueue($queue);
 }
 }
