@@ -1,15 +1,35 @@
 <?php
+
 namespace TeleHelper\TelegramSender;
 
 class TelegramSender
 {
-    protected array $bots;
+    /**
+     * @var TelegramBot[]
+     */
+    protected array $bots = [];
 
     public function __construct()
     {
-        $this->bots = collect(config('telegram-sender.bots'))
-            ->map(fn($bot) => new TelegramBot($bot['token'], $bot['chat_id']))
-            ->toArray();
+        $this->loadBotsFromConfig();
+    }
+
+    protected function loadBotsFromConfig(): void
+    {
+        $configuredBots = config('telegram-sender.bots', []);
+
+        foreach ($configuredBots as $bot) {
+            if (!isset($bot['name'], $bot['token'])) {
+                continue;
+            }
+
+            $this->addBot($bot['name'], $bot['token']);
+        }
+    }
+
+    public function addBot(string $name, string $token): void
+    {
+        $this->bots[$name] = new TelegramBot($token);
     }
 
     public function bot(string $name = null): TelegramBot
@@ -21,5 +41,15 @@ class TelegramSender
         }
 
         return $this->bots[$name];
+    }
+
+    public function hasBot(string $name): bool
+    {
+        return isset($this->bots[$name]);
+    }
+
+    public function listBots(): array
+    {
+        return array_keys($this->bots);
     }
 }
