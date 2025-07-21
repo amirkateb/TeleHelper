@@ -155,32 +155,60 @@ Telegram::bot()->sendBulkMessage([$id1, $id2, $id3], 'Bulk message');
 
 ---
 
-## 📋 List of Available Methods
+### 📚 Full Method List
 
-| Method              | Description                       |
-|---------------------|-----------------------------------|
-| sendMessage         | Send text message                 |
-| sendPhoto           | Send image                        |
-| sendDocument        | Send document (pdf, zip, etc)     |
-| sendAudio           | Send audio                        |
-| sendVoice           | Send voice note                   |
-| sendPoll            | Send Telegram poll                |
-| sendMediaGroup      | Send album of media               |
-| deleteMessage       | Delete a message                  |
-| sendLocation        | Send location (lat/lng)           |
-| sendChatAction      | Typing indicator                  |
-| sendBulkMessage     | Send message to multiple users    |
-| withQueue / queue   | Set custom queue name             |
+| Method                           | Description |
+|----------------------------------|-------------|
+| `sendMessage()`                  | Sends a text message with optional inline buttons |
+| `sendPhoto()`                    | Sends a photo using a URL or File ID |
+| `sendPhotoFile()`               | Sends a photo from local file path |
+| `sendPhotoFromContent()`        | Sends a photo from raw file content (no disk file) |
+| `sendDocumentFile()`            | Sends a document (e.g., PDF) from local file path |
+| `sendVoice()`                   | Sends a voice message (OGG/voice note) |
+| `sendAudio()`                   | Sends an audio file (e.g., MP3) |
+| `sendPoll()`                    | Sends a poll with multiple choice options |
+| `sendMediaGroup()`              | Sends a media group (album of photos/videos) |
+| `sendReplyKeyboard()`           | Sends a reply keyboard (custom buttons) |
+| `sendForceReply()`              | Sends a message with force reply option |
+| `removeKeyboard()`              | Removes the current reply keyboard from chat |
+| `sendChatAction()`              | Sends chat action like `typing`, `upload_photo`, etc. |
+| `editMessageText()`             | Edits text of a previously sent message |
+| `deleteMessage()`               | Deletes a sent message |
+| `answerCallbackQuery()`         | Answers a button click (callback query) |
+| `sendLocation()`                | Sends a geographic location (latitude/longitude) |
+| `sendVenue()`                   | Sends a venue with title and address |
+| `pinMessage()`                  | Pins a message in the chat |
+| `unpinMessage()`                | Unpins a specific or the latest pinned message |
+| `getFile()`                     | Retrieves file info by its `file_id` |
 
 ---
 
-## 🇮🇷 راهنمای فارسی
+## 📃 License
 
-### 🛠 نصب
+MIT © AmirMohammad KatebSaber
+---
+
+## 🇮🇷 راهنمای کامل فارسی
+
+### 🛠 نصب پکیج
 
 ```bash
 composer require telehelper/telegram-sender
 php artisan vendor:publish --tag=telegram-sender-config
+```
+
+### ⚙️ تنظیمات
+
+در فایل `config/telegram-sender.php` تنظیمات مربوط به بات‌ها، پراکسی، لاگ و سایر موارد را انجام دهید. برای فعال‌سازی لاگ اختصاصی، در `config/logging.php` کانال `telegram` را اضافه کنید:
+
+```php
+'channels' => [
+    'telegram' => [
+        'driver' => 'single',
+        'path' => storage_path('logs/telegram.log'),
+        'level' => 'info',
+    ],
+]
 ```
 
 ### ✉️ ارسال پیام ساده
@@ -189,18 +217,107 @@ php artisan vendor:publish --tag=telegram-sender-config
 Telegram::bot()->sendMessage($chatId, 'سلام دنیا');
 ```
 
-### 🎛 امکانات
+### 📸 ارسال عکس
 
-- ارسال پیام با دکمه‌های شیشه‌ای، آدرس، لاگین، سوییچ اینلاین
-- ارسال انواع رسانه‌ها (عکس، پی‌دی‌اف، صوت، آلبوم و ...)
-- پشتیبانی از چند بات
-- صف‌بندی پیام‌ها
-- ارسال به چند کاربر هم‌زمان
-- لاگ اختصاصی
-- تنظیم پراکسی
+```php
+Telegram::bot()->sendPhoto($chatId, 'https://example.com/image.jpg', 'توضیح تصویر');
+```
+
+### 📎 ارسال فایل (PDF و...)
+
+```php
+Telegram::bot()->sendDocument($chatId, '/path/to/file.pdf', 'توضیح فایل');
+```
+
+### 🔊 ارسال صدا و ویس
+
+```php
+Telegram::bot()->sendAudio($chatId, '/path/to/audio.mp3');
+Telegram::bot()->sendVoice($chatId, '/path/to/voice.ogg');
+```
+
+### 📊 ارسال نظرسنجی (Poll)
+
+```php
+Telegram::bot()->sendPoll($chatId, 'بهترین گزینه کدام است؟', ['گزینه اول', 'گزینه دوم']);
+```
+
+### 🖼 ارسال آلبوم (Media Group)
+
+```php
+Telegram::bot()->sendMediaGroup($chatId, [
+    ['type' => 'photo', 'media' => 'https://example.com/1.jpg'],
+    ['type' => 'photo', 'media' => 'https://example.com/2.jpg'],
+]);
+```
+
+### 🎛 ارسال پیام با دکمه‌های شیشه‌ای
+
+```php
+Telegram::bot()->sendMessage($chatId, 'انتخاب کنید:', [
+    'reply_markup' => [
+        'inline_keyboard' => [
+            [['text' => 'گوگل', 'url' => 'https://google.com']],
+            [['text' => 'ورود با تلگرام', 'login_url' => ['url' => 'https://your.site/login']]],
+        ]
+    ]
+]);
+```
+
+### 📍 ارسال موقعیت مکانی
+
+```php
+Telegram::bot()->sendLocation($chatId, 35.6892, 51.3890); // تهران
+```
 
 ---
 
-## 📃 License
+## 📦 صف‌بندی پیام‌ها (Queue)
 
-MIT © AmirMohammad KatebSaber
+### ارسال پیام با صف دلخواه
+
+```php
+Telegram::bot()->queue('high')->sendMessage($chatId, 'پیام صف‌بندی شده!');
+```
+
+### ارسال گروهی پیام (Bulk)
+
+```php
+Telegram::bot()->sendBulkMessage([$id1, $id2, $id3], 'پیام به همه کاربران');
+```
+
+---
+
+### 📚 لیست کامل متدها
+
+| متد                             | توضیح |
+|----------------------------------|-------|
+| `sendMessage()`                  | ارسال پیام متنی با قابلیت دکمه‌های شیشه‌ای |
+| `sendPhoto()`                    | ارسال عکس از طریق URL یا File ID |
+| `sendPhotoFile()`               | ارسال عکس از طریق مسیر فایل لوکال |
+| `sendPhotoFromContent()`        | ارسال عکس از محتوای فایل (بدون ذخیره در دیسک) |
+| `sendDocumentFile()`            | ارسال فایل مستند مانند PDF |
+| `sendVoice()`                   | ارسال پیام صوتی (voice) |
+| `sendAudio()`                   | ارسال فایل صوتی (audio) مثل mp3 |
+| `sendPoll()`                    | ارسال نظرسنجی (poll) |
+| `sendMediaGroup()`              | ارسال گروه رسانه‌ای (آلبوم عکس یا ویدیو) |
+| `sendReplyKeyboard()`           | ارسال پیام با کیبورد معمولی (Reply Keyboard) |
+| `sendForceReply()`              | ارسال پیام با کیبورد Force Reply |
+| `removeKeyboard()`              | حذف کیبورد فعلی از چت کاربر |
+| `sendChatAction()`              | ارسال وضعیت تایپ/ضبط صدا مثل `typing`, `upload_photo` و ... |
+| `editMessageText()`             | ویرایش متن پیام قبلی ارسال‌شده |
+| `deleteMessage()`               | حذف پیام ارسال‌شده |
+| `answerCallbackQuery()`         | پاسخ به کلیک روی دکمه‌های شیشه‌ای |
+| `sendLocation()`                | ارسال موقعیت جغرافیایی |
+| `sendVenue()`                   | ارسال مکان با عنوان و آدرس |
+| `pinMessage()`                  | پین کردن یک پیام در چت |
+| `unpinMessage()`                | برداشتن پین از پیام خاص یا آخرین پیام پین‌شده |
+| `getFile()`                     | دریافت اطلاعات فایل با استفاده از file_id |
+
+---
+
+## 📜 لایسنس
+
+این پکیج تحت لایسنس MIT ارائه می‌شود.  
+© امیرمحمد کاتب صابر
+
