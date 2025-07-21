@@ -7,33 +7,33 @@ use TeleHelper\TelegramSender\TelegramSender;
 
 class SendTestTelegramCommand extends Command
 {
-    protected $signature = 'telegram:test
-                            {bot : Name of the bot (defined in config)}
-                            {chat_id : Chat ID to send the message to}
-                            {message : The message content}';
+    protected $signature = 'telegram:send 
+                            {chat_id : The Telegram chat ID} 
+                            {message : The message content} 
+                            {--bot= : Optional bot name (defined in config)}';
 
-    protected $description = 'Send a test message using a selected Telegram bot';
+    protected $description = 'Send a test message to a specific chat using a configured Telegram bot.';
 
-    public function handle()
+    public function handle(): int
     {
-        $botName = $this->argument('bot');
-        $chatId = $this->argument('chat_id');
+        $chatId  = $this->argument('chat_id');
         $message = $this->argument('message');
+        $botName = $this->option('bot') ?? config('telegram-sender.default_bot');
+
+        $sender = app(TelegramSender::class);
+
+        if (! $sender->hasBot($botName)) {
+            $this->error("❌ Bot '{$botName}' is not defined in your configuration.");
+            return self::FAILURE;
+        }
 
         try {
-            $sender = app(TelegramSender::class);
-            if (! $sender->hasBot($botName)) {
-                $this->error("❌ Bot '{$botName}' not found.");
-                return Command::FAILURE;
-            }
-
             $sender->bot($botName)->sendMessage($chatId, $message);
-            $this->info("✅ Message sent successfully using bot '{$botName}'");
-
-            return Command::SUCCESS;
+            $this->info("✅ Message successfully sent to chat ID {$chatId} using bot '{$botName}'.");
+            return self::SUCCESS;
         } catch (\Throwable $e) {
             $this->error("❌ Failed to send message: " . $e->getMessage());
-            return Command::FAILURE;
+            return self::FAILURE;
         }
     }
 }
