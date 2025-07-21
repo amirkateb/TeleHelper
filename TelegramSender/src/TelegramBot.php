@@ -2,6 +2,7 @@
 
 namespace TeleHelper\TelegramSender;
 
+use TeleHelper\TelegramSender\Jobs\SendTelegramMessageJob;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -34,7 +35,6 @@ class TelegramBot
             }
 
             $proxyUrl .= "{$proxy['host']}:{$proxy['port']}";
-
             $http = $http->withOptions(['proxy' => $proxyUrl]);
         }
 
@@ -249,68 +249,107 @@ class TelegramBot
             'show_alert' => $showAlert,
         ]);
     }
-    
+
     public function deleteMessage(string $chatId, int $messageId): array
-{
-    return $this->send('deleteMessage', [
-        'chat_id' => $chatId,
-        'message_id' => $messageId,
-    ]);
-}
-
-public function sendLocation(string $chatId, float $latitude, float $longitude, array $options = []): array
-{
-    $payload = [
-        'chat_id' => $chatId,
-        'latitude' => $latitude,
-        'longitude' => $longitude,
-        'disable_notification' => $options['disable_notification'] ?? false,
-        'horizontal_accuracy' => $options['accuracy'] ?? null,
-        'live_period' => $options['live_period'] ?? null,
-    ];
-
-    return $this->send('sendLocation', $payload);
-}
-
-public function sendVenue(string $chatId, float $latitude, float $longitude, string $title, string $address, array $options = []): array
-{
-    $payload = [
-        'chat_id' => $chatId,
-        'latitude' => $latitude,
-        'longitude' => $longitude,
-        'title' => $title,
-        'address' => $address,
-    ];
-
-    return $this->send('sendVenue', $payload);
-}
-
-public function pinMessage(string $chatId, int $messageId, bool $disableNotification = false): array
-{
-    return $this->send('pinChatMessage', [
-        'chat_id' => $chatId,
-        'message_id' => $messageId,
-        'disable_notification' => $disableNotification,
-    ]);
-}
-
-public function unpinMessage(string $chatId, ?int $messageId = null): array
-{
-    $payload = [
-        'chat_id' => $chatId,
-    ];
-
-    if ($messageId) {
-        $payload['message_id'] = $messageId;
+    {
+        return $this->send('deleteMessage', [
+            'chat_id' => $chatId,
+            'message_id' => $messageId,
+        ]);
     }
 
-    return $this->send('unpinChatMessage', $payload);
+    public function sendLocation(string $chatId, float $latitude, float $longitude, array $options = []): array
+    {
+        $payload = [
+            'chat_id' => $chatId,
+            'latitude' => $latitude,
+            'longitude' => $longitude,
+            'disable_notification' => $options['disable_notification'] ?? false,
+            'horizontal_accuracy' => $options['accuracy'] ?? null,
+            'live_period' => $options['live_period'] ?? null,
+        ];
+
+        return $this->send('sendLocation', $payload);
+    }
+
+    public function sendVenue(string $chatId, float $latitude, float $longitude, string $title, string $address, array $options = []): array
+    {
+        $payload = [
+            'chat_id' => $chatId,
+            'latitude' => $latitude,
+            'longitude' => $longitude,
+            'title' => $title,
+            'address' => $address,
+        ];
+
+        return $this->send('sendVenue', $payload);
+    }
+
+    public function pinMessage(string $chatId, int $messageId, bool $disableNotification = false): array
+    {
+        return $this->send('pinChatMessage', [
+            'chat_id' => $chatId,
+            'message_id' => $messageId,
+            'disable_notification' => $disableNotification,
+        ]);
+    }
+
+    public function unpinMessage(string $chatId, ?int $messageId = null): array
+    {
+        $payload = ['chat_id' => $chatId];
+
+        if ($messageId) {
+            $payload['message_id'] = $messageId;
+        }
+
+        return $this->send('unpinChatMessage', $payload);
+    }
+
+    public function getFile(string $fileId): array
+    {
+        return $this->send('getFile', [
+            'file_id' => $fileId,
+        ]);
+    }
+    public function sendVoice(string $chatId, string $voice, ?string $caption = null, array $options = []): array
+{
+    $payload = [
+        'chat_id' => $chatId,
+        'voice' => $voice,
+        'caption' => $caption,
+        'parse_mode' => $options['parse_mode'] ?? 'HTML',
+    ];
+
+    return $this->send('sendVoice', $payload);
 }
 
-public function getFile(string $fileId): array
+public function sendAudio(string $chatId, string $audio, ?string $caption = null, array $options = []): array
 {
-    return $this->send('getFile', [
-        'file_id' => $fileId,
-    ]);
+    $payload = [
+        'chat_id' => $chatId,
+        'audio' => $audio,
+        'caption' => $caption,
+        'parse_mode' => $options['parse_mode'] ?? 'HTML',
+    ];
+
+    return $this->send('sendAudio', $payload);
+}
+
+public function sendMediaGroup(string $chatId, array $mediaList): array
+{
+    $payload = [
+        'chat_id' => $chatId,
+        'media' => json_encode($mediaList),
+    ];
+
+    return $this->send('sendMediaGroup', $payload);
+}
+
+public function sendBulkMessage(array $chatIds, string $text, array $options = [], ?string $queue = null): void
+{
+    foreach ($chatIds as $chatId) {
+        SendTelegramMessageJob::dispatch($this->botName, $chatId, $text, $options)
+            ->onQueue($queue ?? config('telegram-sender.default_queue', 'default'));
+    }
 }
 }
