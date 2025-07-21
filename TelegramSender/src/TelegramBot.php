@@ -352,4 +352,28 @@ public function sendBulkMessage(array $chatIds, string $text, array $options = [
             ->onQueue($queue ?? config('telegram-sender.default_queue', 'default'));
     }
 }
+
+public function sendPhotoFromContent(string $chatId, string $fileContent, string $filename = 'image.jpg', ?string $caption = null): array
+{
+    $stream = fopen('php://temp', 'r+');
+    fwrite($stream, $fileContent);
+    rewind($stream);
+
+    $url = $this->getBaseUrl('sendPhoto');
+
+    $response = $this->buildHttpClient()
+        ->attach('photo', $stream, $filename)
+        ->post($url, [
+            'chat_id' => $chatId,
+            'caption' => $caption,
+            'parse_mode' => 'HTML',
+        ]);
+
+    if (!$response->successful()) {
+        throw new TelegramException("Telegram API error (sendPhotoFromContent): " . $response->body());
+    }
+
+    return $response->json();
+}
+
 }
