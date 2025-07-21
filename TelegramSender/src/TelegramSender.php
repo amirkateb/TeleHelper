@@ -58,4 +58,32 @@ class TelegramSender
 {
     SendTelegramJob::dispatch($botName, $method, $arguments)->onQueue($queue);
 }
+
+public function sendBulkMessage(array $chatIds, string $message, array $options = [], ?string $queue = null): void
+{
+    foreach ($chatIds as $chatId) {
+        $job = new SendTelegramJob(
+            botName: $this->botName,
+            method: 'sendMessage',
+            payload: [
+                'chat_id' => $chatId,
+                'text' => $message,
+                'parse_mode' => $options['parse_mode'] ?? 'HTML',
+                'disable_web_page_preview' => $options['disable_web_page_preview'] ?? false,
+                'disable_notification' => $options['disable_notification'] ?? false,
+                'reply_to_message_id' => $options['reply_to_message_id'] ?? null,
+                'reply_markup' => isset($options['buttons']) ? json_encode([
+                    'inline_keyboard' => $options['buttons'],
+                ]) : null,
+            ]
+        );
+
+        if ($queue) {
+            $job->onQueue($queue);
+        }
+
+        dispatch($job);
+    }
+
+
 }
