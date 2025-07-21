@@ -14,20 +14,35 @@ class TelegramBot
     }
 
     protected function send(string $method, array $params): array
-    {
-        $url = "https://api.telegram.org/bot{$this->token}/{$method}";
+{
+    $url = "https://api.telegram.org/bot{$this->token}/{$method}";
 
-        try {
-            $response = Http::timeout(10)->post($url, $params);
-            if (!$response->successful()) {
-                throw new TelegramException("Telegram API error ({$method}): " . $response->body());
-            }
+    try {
+        $http = Http::timeout(10);
+        if (config('telegram-sender.proxy.enabled')) {
+            $proxyUrl = config('telegram-sender.proxy.type') . '://' .
+                        config('telegram-sender.proxy.host') . ':' .
+                        config('telegram-sender.proxy.port');
 
-            return $response->json();
-        } catch (\Throwable $e) {
-            throw new TelegramException("Send failed ({$method}): " . $e->getMessage(), $e->getCode(), $e);
+            $http = $http->withOptions([
+                'proxy' => $proxyUrl,
+                'auth' => config('telegram-sender.proxy.username')
+                    ? [config('telegram-sender.proxy.username'), config('telegram-sender.proxy.password')]
+                    : null
+            ]);
         }
+
+        $response = $http->post($url, $params);
+
+        if (!$response->successful()) {
+            throw new TelegramException("Telegram API error ({$method}): " . $response->body());
+        }
+
+        return $response->json();
+    } catch (\Throwable $e) {
+        throw new TelegramException("Send failed ({$method}): " . $e->getMessage(), $e->getCode(), $e);
     }
+}
 
     public function sendMessage(string $chatId, string $text, array $options = []): array
     {
