@@ -1,3 +1,10 @@
+# TelegramSender
+
+[![Latest Version on Packagist](https://img.shields.io/packagist/v/telehelper/telegram-sender.svg)](https://packagist.org/packages/telehelper/telegram-sender)
+[![Total Downloads](https://img.shields.io/packagist/dt/telehelper/telegram-sender.svg)](https://packagist.org/packages/telehelper/telegram-sender)
+[![Minimum PHP Version](https://img.shields.io/packagist/php-v/telehelper/telegram-sender.svg)](https://packagist.org/packages/telehelper/telegram-sender)
+[![License](https://img.shields.io/github/license/amirkateb/TeleHelper.svg)](https://github.com/amirkateb/TeleHelper/blob/main/LICENSE)
+
 # 📦 telehelper/telegram-sender
 
 A powerful Laravel package to send Telegram messages with full control, multi-bot support, media sending, queueing, logging, and keyboard buttons.
